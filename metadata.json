@@ -1,0 +1,5 @@
+{
+  "name": "MagicTime Calc",
+  "description": "A fully functional calculator with a hidden magic trick feature based on current time.",
+  "requestFramePermissions": []
+}
