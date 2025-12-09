@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Wand2, History, Delete } from 'lucide-react';
+import React, { useState } from 'react';
 import { CalcButton } from './components/CalcButton';
 import { Display } from './components/Display';
 import { ButtonType, MagicState } from './types';
@@ -47,6 +46,31 @@ const App: React.FC = () => {
   };
 
   const handleOperator = (nextOperator: string) => {
+    // --- MAGIC BUTTON LOGIC ---
+    // The Divide (÷) button is now the trigger for the magic trick.
+    if (nextOperator === '÷') {
+      if (magicState === MagicState.Idle) {
+        // Stage 1: Freeze inputs. The app appears unresponsive.
+        setMagicState(MagicState.Frozen);
+      } else if (magicState === MagicState.Frozen) {
+        // Stage 2: Reveal the magic number
+        // If we have a first operand and the operator is '+', calculate the remainder needed to reach current time
+        if (firstOperand !== null && operator === '+') {
+          const targetTime = getMagicTimeNumber();
+          const magicNumber = targetTime - firstOperand;
+          
+          setDisplayValue(String(magicNumber));
+          
+          // Treat this as if the user just typed the number
+          setWaitingForSecondOperand(false); 
+        }
+        // Always unfreeze after the second press
+        setMagicState(MagicState.Idle);
+      }
+      return; // Do not process '÷' as a mathematical operator
+    }
+    // --------------------------
+
     if (magicState === MagicState.Frozen) return; // BLOCK INPUT
 
     const inputValue = parseFloat(displayValue);
@@ -69,7 +93,8 @@ const App: React.FC = () => {
       case '+': return first + second;
       case '-': return first - second;
       case '×': return first * second;
-      case '÷': return first / second;
+      // Division case removed from active logic, but kept for type safety or fallback
+      case '÷': return first / second; 
       default: return second;
     }
   };
@@ -90,8 +115,6 @@ const App: React.FC = () => {
     setFirstOperand(null);
     setOperator(null);
     setWaitingForSecondOperand(false);
-    // Magic state naturally resets on equal because the trick is done
-    setMagicState(MagicState.Idle);
   };
 
   const handlePercentage = () => {
@@ -108,45 +131,6 @@ const App: React.FC = () => {
     if (currentValue === 0) return;
     setDisplayValue((currentValue * -1).toString());
   };
-
-  /**
-   * MAGIC LOGIC IMPLEMENTATION
-   */
-  const handleMagicButton = () => {
-    // Condition 1: If in Idle, we enter Frozen state
-    if (magicState === MagicState.Idle) {
-      // This mimics the "Press once, nothing happens (keys disable)" part
-      setMagicState(MagicState.Frozen);
-    } 
-    // Condition 2: If already Frozen, we reveal the calculated difference
-    else if (magicState === MagicState.Frozen) {
-      
-      // The prompt specifically asks for this behavior when implementing Addition (+).
-      // If we are in the middle of an addition operation (firstOperand exists, operator is +)
-      if (firstOperand !== null && operator === '+') {
-        const targetTime = getMagicTimeNumber();
-        
-        // Math: We want (FirstOperand + X) = TargetTime
-        // So, X (the number we show now) = TargetTime - FirstOperand
-        const magicNumber = targetTime - firstOperand;
-        
-        setDisplayValue(String(magicNumber));
-        
-        // Crucial: We tell the calculator "We just typed this number in"
-        // so when the user hits '=', it calculates: FirstOperand + MagicNumber
-        setWaitingForSecondOperand(false); 
-        
-        // Reset magic state so the user can press '='
-        setMagicState(MagicState.Idle);
-      } else {
-        // Fallback if not using the specific trick conditions (just unfreeze)
-        setMagicState(MagicState.Idle);
-      }
-    }
-  };
-
-  // Effect to handle global click blocking during frozen state if we wanted to be extra safe,
-  // but handling it in each handler is cleaner for React.
 
   return (
     <div className="min-h-screen w-full bg-black flex items-center justify-center p-0 sm:p-4 font-sans">
@@ -189,7 +173,7 @@ const App: React.FC = () => {
             label="÷" 
             onClick={() => handleOperator('÷')} 
             type={ButtonType.Operator} 
-            active={operator === '÷'}
+            active={false} 
           />
 
           {/* Row 2 */}
@@ -230,7 +214,7 @@ const App: React.FC = () => {
             label="0" 
             onClick={() => handleNumber('0')} 
             doubleWidth 
-            className="pl-8" // Manual adjustment for text alignment
+            className="pl-8" 
           />
           <CalcButton label="." onClick={handleDot} />
           <CalcButton 
@@ -239,30 +223,6 @@ const App: React.FC = () => {
             type={ButtonType.Operator} 
           />
         </div>
-
-        {/* The "Special" Button - Positioned discretely or clearly based on request.
-            Prompt says "Special button on the screen".
-            I'll place it floating near the top left of the keypad area or replace an unused function.
-            Since standard layout is full, I will add a discreet floating action button 
-            or a small icon button in the display area.
-         */}
-        <div className="absolute top-1/3 left-6 transform -translate-y-1/2">
-           <button 
-             onClick={handleMagicButton}
-             className={`
-               p-3 rounded-full transition-all duration-500
-               ${magicState === MagicState.Frozen ? 'text-orange-500 scale-110 rotate-180' : 'text-neutral-700 hover:text-neutral-500'}
-             `}
-             aria-label="Magic Function"
-           >
-             <Wand2 size={20} />
-           </button>
-        </div>
-
-        {/* Visual feedback for frozen state (Optional, keeps user informed if they don't know the trick) */}
-        {magicState === MagicState.Frozen && (
-          <div className="absolute inset-0 border-4 border-indigo-500/20 pointer-events-none rounded-[3rem] animate-pulse" />
-        )}
       </div>
     </div>
   );
